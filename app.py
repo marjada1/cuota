@@ -186,7 +186,7 @@ def obtener_datos():
     # Limpiar los valores de ambos DataFrames
     df_actual = limpiar_valores(df_actual)
     df_anterior = limpiar_valores(df_anterior)
-        # Verificar si ambos DataFrames contienen datos
+            # Verificar si ambos DataFrames contienen datos
         if not df_actual.empty and not df_anterior.empty:
             # Fusionar los DataFrames en base a la AFP y Fondo
             df_comparacion = pd.merge(df_actual, df_anterior, on=['A.F.P.', 'Fondo'], suffixes=('_hoy', '_ayer'))
@@ -255,3 +255,4 @@ st.title("Rentabilidad Relativa AFPs ✌️")
 
 if st.button('Ejecutar Proceso'):
     obtener_datos()
+
