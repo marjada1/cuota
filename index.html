@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rentabilidad AFP</title>
+</head>
+<body>
+    <h1>Calculadora de Rentabilidad AFP</h1>
+    <form action="/run" method="post">
+        <button type="submit">Ejecutar Proceso</button>
+    </form>
+    <div>
+        {% if result %}
+            <h2>Resultados:</h2>
+            {{ result|safe }}
+        {% endif %}
+    </div>
+</body>
+</html>
