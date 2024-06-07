@@ -57,7 +57,6 @@ def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
     dataframes = []
     afp_estado = {afp: {fondo: 'NOT YET' for fondo in urls_fondos.keys()} for afp in set([k[0] for k in cuotas_manual.keys()])}
-    fechas_fondos = {}
 
     # Variable para almacenar la última fecha disponible del web scraping
     ultima_fecha = None
@@ -77,9 +76,8 @@ def obtener_datos():
                 date_tag = soup.find_all('table', class_='table table-striped table-hover table-bordered table-condensed')[1]
                 if date_tag:
                     date_str = date_tag.find_all('center')[0].text.strip().split()[0]
-                    if ultima_fecha is None or date_str > ultima_fecha:
+                    if ultima_fecha is None:
                         ultima_fecha = date_str
-                    fechas_fondos[fondo] = date_str
                 else:
                     date_str = "Fecha no encontrada"
 
@@ -124,10 +122,9 @@ def obtener_datos():
         except requests.exceptions.RequestException as e:
             st.error(f"Error de conexión: {e}")
 
-    # Concatenar todos los DataFrames en uno solo y filtrar por la fecha más reciente
+    # Concatenar todos los DataFrames en uno solo
     if dataframes:
         df_consolidado = pd.concat(dataframes, ignore_index=True)
-        df_consolidado = df_consolidado[df_consolidado['Fecha'] == ultima_fecha]
     else:
         st.write("No se pudieron obtener datos de ningún fondo.")
         return None, None, None, None
@@ -222,17 +219,17 @@ def obtener_datos():
                     for afp in afps:
                         rentabilidad_afp = df_comparacion[(df_comparacion['A.F.P.'] == afp) & (df_comparacion['Fondo'] == fondo)]['Rentabilidad']
                         if not rentabilidad_afp.empty:
-                            diferencia = (rentabilidad_provida.values[0] - rentabilidad_afp.values[0]) * 100
+                            diferencia = (rentabilidad_provida.values[0] - rentabilidad_afp.values[0])*100
                             rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
 
             # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
-            st.write("Comparación de rentabilidad con respecto a AFP Provida ✌️:")
+            st.write("Comparación de rentabilidad con respecto a AFP Provida:")
             st.dataframe(rentabilidad_diferencia)
         else:
             st.write("No hay datos de rentabilidad para AFP Provida en este día.")
 
         # Mostrar la última fecha disponible
-        st.write(f"Última fecha disponible en el web scraping: {ultima_fecha}")
+        st.subheader(f"Última fecha disponible: {ultima_fecha}")
 
         # Convertir el diccionario de estado de AFP a un DataFrame
         afp_estado_df = pd.DataFrame(afp_estado).T
@@ -242,6 +239,7 @@ def obtener_datos():
         # Mostrar el estado de cada AFP
         st.write("Estado de cada AFP:")
         st.dataframe(afp_estado_df)
+
     else:
         st.write("No se pudieron obtener datos suficientes para la comparación.")
 
@@ -253,8 +251,7 @@ def obtener_fecha_archivo(nombre_archivo):
     return os.path.splitext(nombre_archivo)[0].split('_')[-1]
 
 # Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFPs ✌️")
-
+st.title("Rentabilidad Relativa AFP ✌️")
+st.write("Información extraída del sitio de la Superintendencia de Pensiones")
 if st.button('Ejecutar Proceso'):
     obtener_datos()
-
