@@ -252,6 +252,6 @@ def obtener_fecha_archivo(nombre_archivo):
 
 # Interfaz de Streamlit
 st.title("Rentabilidad Relativa AFP ✌️")
-st.write("Información extraída del sitio de la SPen")
+st.write("Información extraída del sitio de la Superintendencia de Pensiones")
 if st.button('Ejecutar Proceso'):
     obtener_datos()
