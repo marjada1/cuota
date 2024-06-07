@@ -52,11 +52,11 @@ cuotas_manual = {
     ('PROVIDA', 'D'): '*',
     ('PROVIDA', 'E'): '*',
 }
-
 def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
     dataframes = []
     afp_estado = {afp: {fondo: 'NOT YET' for fondo in urls_fondos.keys()} for afp in set([k[0] for k in cuotas_manual.keys()])}
+    fechas_fondos = {}
 
     # Variable para almacenar la última fecha disponible del web scraping
     ultima_fecha = None
@@ -76,8 +76,9 @@ def obtener_datos():
                 date_tag = soup.find_all('table', class_='table table-striped table-hover table-bordered table-condensed')[1]
                 if date_tag:
                     date_str = date_tag.find_all('center')[0].text.strip().split()[0]
-                    if ultima_fecha is None:
+                    if ultima_fecha is None or date_str > ultima_fecha:
                         ultima_fecha = date_str
+                    fechas_fondos[fondo] = date_str
                 else:
                     date_str = "Fecha no encontrada"
 
@@ -122,9 +123,10 @@ def obtener_datos():
         except requests.exceptions.RequestException as e:
             st.error(f"Error de conexión: {e}")
 
-    # Concatenar todos los DataFrames en uno solo
+    # Concatenar todos los DataFrames en uno solo y filtrar por la fecha más reciente
     if dataframes:
         df_consolidado = pd.concat(dataframes, ignore_index=True)
+        df_consolidado = df_consolidado[df_consolidado['Fecha'] == ultima_fecha]
     else:
         st.write("No se pudieron obtener datos de ningún fondo.")
         return None, None, None, None
@@ -184,64 +186,62 @@ def obtener_datos():
     # Limpiar los valores de ambos DataFrames
     df_actual = limpiar_valores(df_actual)
     df_anterior = limpiar_valores(df_anterior)
+        # Verificar si ambos DataFrames contienen datos
+        if not df_actual.empty and not df_anterior.empty:
+            # Fusionar los DataFrames en base a la AFP y Fondo
+            df_comparacion = pd.merge(df_actual, df_anterior, on=['A.F.P.', 'Fondo'], suffixes=('_hoy', '_ayer'))
 
-    # Verificar si ambos DataFrames contienen datos
-    if not df_actual.empty and not df_anterior.empty:
-        # Fusionar los DataFrames en base a la AFP y Fondo
-        df_comparacion = pd.merge(df_actual, df_anterior, on=['A.F.P.', 'Fondo'], suffixes=('_hoy', '_ayer'))
+            # Filtrar filas donde 'Valor Cuota' de ambos días sean números (no NaN)
+            df_comparacion = df_comparacion.dropna(subset=['Valor Cuota_hoy', 'Valor Cuota_ayer'])
 
-        # Filtrar filas donde 'Valor Cuota' de ambos días sean números (no NaN)
-        df_comparacion = df_comparacion.dropna(subset=['Valor Cuota_hoy', 'Valor Cuota_ayer'])
+            # Calcular la rentabilidad
+            df_comparacion['Rentabilidad'] = (df_comparacion['Valor Cuota_hoy'] - df_comparacion['Valor Cuota_ayer']) / df_comparacion['Valor Cuota_ayer'] * 100
 
-        # Calcular la rentabilidad
-        df_comparacion['Rentabilidad'] = (df_comparacion['Valor Cuota_hoy'] - df_comparacion['Valor Cuota_ayer']) / df_comparacion['Valor Cuota_ayer'] * 100
+            # Seleccionar las columnas para la tabla final
+            df_resultado = df_comparacion[['A.F.P.', 'Fondo', 'Valor Cuota_hoy', 'Valor Cuota_ayer', 'Rentabilidad', 'Fecha_hoy']]
 
-        # Seleccionar las columnas para la tabla final
-        df_resultado = df_comparacion[['A.F.P.', 'Fondo', 'Valor Cuota_hoy', 'Valor Cuota_ayer', 'Rentabilidad', 'Fecha_hoy']]
+            # Filtrar los datos de AFP Provida
+            provida_data = df_comparacion[df_comparacion['A.F.P.'] == 'PROVIDA']
 
-        # Filtrar los datos de AFP Provida
-        provida_data = df_comparacion[df_comparacion['A.F.P.'] == 'PROVIDA']
+            # Verificar si hay datos de rentabilidad para AFP Provida
+            if not provida_data.empty:
+                # Crear una tabla para almacenar las diferencias de rentabilidad
+                fondos = df_comparacion['Fondo'].unique()
+                afps = df_comparacion['A.F.P.'].unique()
+                afps = afps[afps != 'PROVIDA']  # Excluir AFP Provida
 
-        # Verificar si hay datos de rentabilidad para AFP Provida
-        if not provida_data.empty:
-            # Crear una tabla para almacenar las diferencias de rentabilidad
-            fondos = df_comparacion['Fondo'].unique()
-            afps = df_comparacion['A.F.P.'].unique()
-            afps = afps[afps != 'PROVIDA']  # Excluir AFP Provida
+                # Inicializar la tabla con NaN
+                rentabilidad_diferencia = pd.DataFrame(index=afps, columns=fondos, data=pd.NA)
 
-            # Inicializar la tabla con NaN
-            rentabilidad_diferencia = pd.DataFrame(index=afps, columns=fondos, data=pd.NA)
+                # Calcular la diferencia de rentabilidad con respecto a AFP Provida
+                for fondo in fondos:
+                    rentabilidad_provida = provida_data[provida_data['Fondo'] == fondo]['Rentabilidad']
+                    if not rentabilidad_provida.empty:
+                        for afp in afps:
+                            rentabilidad_afp = df_comparacion[(df_comparacion['A.F.P.'] == afp) & (df_comparacion['Fondo'] == fondo)]['Rentabilidad']
+                            if not rentabilidad_afp.empty:
+                                diferencia = rentabilidad_provida.values[0] - rentabilidad_afp.values[0]
+                                rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
 
-            # Calcular la diferencia de rentabilidad con respecto a AFP Provida
-            for fondo in fondos:
-                rentabilidad_provida = provida_data[provida_data['Fondo'] == fondo]['Rentabilidad']
-                if not rentabilidad_provida.empty:
-                    for afp in afps:
-                        rentabilidad_afp = df_comparacion[(df_comparacion['A.F.P.'] == afp) & (df_comparacion['Fondo'] == fondo)]['Rentabilidad']
-                        if not rentabilidad_afp.empty:
-                            diferencia = (rentabilidad_provida.values[0] - rentabilidad_afp.values[0])*100
-                            rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
+                # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
+                st.write("Comparación de rentabilidad con respecto a AFP Provida ✌️:")
+                st.dataframe(rentabilidad_diferencia)
+            else:
+                st.write("No hay datos de rentabilidad para AFP Provida en este día.")
 
-            # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
-            st.write("Comparación de rentabilidad con respecto a AFP Provida:")
-            st.dataframe(rentabilidad_diferencia)
+            # Mostrar la última fecha disponible
+            st.write(f"Última fecha disponible en el web scraping: {ultima_fecha}")
+
+            # Convertir el diccionario de estado de AFP a un DataFrame
+            afp_estado_df = pd.DataFrame(afp_estado).T
+            afp_estado_df.index.name = 'AFP'
+            afp_estado_df.columns.name = 'Fondo'
+            
+            # Mostrar el estado de cada AFP
+            st.write("Estado de cada AFP:")
+            st.dataframe(afp_estado_df)
         else:
-            st.write("No hay datos de rentabilidad para AFP Provida en este día.")
-
-        # Mostrar la última fecha disponible
-        st.subheader(f"Última fecha disponible: {ultima_fecha}")
-
-        # Convertir el diccionario de estado de AFP a un DataFrame
-        afp_estado_df = pd.DataFrame(afp_estado).T
-        afp_estado_df.index.name = 'AFP'
-        afp_estado_df.columns.name = 'Fondo'
-        
-        # Mostrar el estado de cada AFP
-        st.write("Estado de cada AFP:")
-        st.dataframe(afp_estado_df)
-
-    else:
-        st.write("No se pudieron obtener datos suficientes para la comparación.")
+            st.write("No se pudieron obtener datos suficientes para la comparación.")
 
 def limpiar_valores(df):
     df['Valor Cuota'] = df['Valor Cuota'].apply(lambda x: pd.to_numeric(x.replace('.', '').replace(',', '.'), errors='coerce'))
@@ -251,7 +251,7 @@ def obtener_fecha_archivo(nombre_archivo):
     return os.path.splitext(nombre_archivo)[0].split('_')[-1]
 
 # Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFP ✌️")
-st.write("Información extraída del sitio de la Superintendencia de Pensiones")
+st.title("Rentabilidad Relativa AFPs ✌️")
+
 if st.button('Ejecutar Proceso'):
     obtener_datos()
