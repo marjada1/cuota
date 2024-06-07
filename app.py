@@ -251,7 +251,7 @@ def obtener_fecha_archivo(nombre_archivo):
     return os.path.splitext(nombre_archivo)[0].split('_')[-1]
 
 # Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFPs &#128513 ")
+st.title("Rentabilidad Relativa AFPs ✌️")
 st.subheader("Información obtenida de la Superintendencia de Pensiones")
 if st.button('Ejecutar Proceso'):
     obtener_datos()
