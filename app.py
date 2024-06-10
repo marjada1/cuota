@@ -46,11 +46,11 @@ cuotas_manual = {
     ('PLANVITAL', 'C'): '113533',
     ('PLANVITAL', 'D'): '44354.64',
     ('PLANVITAL', 'E'): '90360.26',
-    ('PROVIDA', 'A'): '*',
-    ('PROVIDA', 'B'): '*',
-    ('PROVIDA', 'C'): '*',
-    ('PROVIDA', 'D'): '*',
-    ('PROVIDA', 'E'): '*',
+    ('PROVIDA', 'A'): '68330.79',
+    ('PROVIDA', 'B'): '57190.22',
+    ('PROVIDA', 'C'): '54921.67',
+    ('PROVIDA', 'D'): '44431.58',
+    ('PROVIDA', 'E'): '52837.62',
 }
 
 def obtener_datos():
