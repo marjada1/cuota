@@ -5,7 +5,7 @@ import pandas as pd
 import glob
 import os
 
-# Definir las URLs y los fondos correspondientes
+# Define the URLs and corresponding funds
 urls_fondos = {
     'A': 'https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php?tf=A',
     'B': 'https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php?tf=B',
@@ -14,8 +14,8 @@ urls_fondos = {
     'E': 'https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php?tf=E'
 }
 
-# Cuotas ingresadas manualmente con los nombres correctos de las AFP
-cuotas_manual = {
+# Manually entered quotas with correct AFP names
+manual_quotas = {
     ('UNO', 'A'): '*',
     ('UNO', 'B'): '*',
     ('UNO', 'C'): '*',
@@ -53,205 +53,211 @@ cuotas_manual = {
     ('PROVIDA', 'E'): '*',
 }
 
-def obtener_datos():
-    # Inicializar lista para almacenar los datos de todos los fondos
+def fetch_data():
+    # Initialize list to store data from all funds
     dataframes = []
-    afp_estado = {afp: {fondo: 'NOT YET' for fondo in urls_fondos.keys()} for afp in set([k[0] for k in cuotas_manual.keys()])}
+    afp_status = {afp: {fund: 'NOT YET' for fund in urls_fondos.keys()} for afp in set([k[0] for k in manual_quotas.keys()])}
+    fund_dates = {}
 
-    # Variable para almacenar la última fecha disponible del web scraping
-    ultima_fecha = None
+    # Variable to store the latest available date from web scraping
+    latest_date = None
 
-    # Iterar sobre cada URL y fondo
-    for fondo, url in urls_fondos.items():
+    # Iterate over each URL and fund
+    for fund, url in urls_fondos.items():
         try:
-            # Realizar la solicitud GET
+            # Perform GET request
             response = requests.get(url, timeout=10)
 
-            # Verificar si la solicitud fue exitosa
+            # Check if the request was successful
             if response.status_code == 200:
-                # Parsear el contenido HTML con BeautifulSoup
+                # Parse HTML content with BeautifulSoup
                 soup = BeautifulSoup(response.content, 'html.parser')
 
-                # Encontrar la fecha
+                # Find the date
                 date_tag = soup.find_all('table', class_='table table-striped table-hover table-bordered table-condensed')[1]
                 if date_tag:
                     date_str = date_tag.find_all('center')[0].text.strip().split()[0]
-                    if ultima_fecha is None:
-                        ultima_fecha = date_str
+                    if latest_date is None or date_str > latest_date:
+                        latest_date = date_str
+                    fund_dates[fund] = date_str
                 else:
-                    date_str = "Fecha no encontrada"
+                    date_str = "Date not found"
 
-                # Encontrar la tabla correcta
+                # Find the correct table
                 table = soup.find_all('table', class_='table table-striped table-hover table-bordered table-condensed')[1]
 
-                # Inicializar listas para almacenar los datos
+                # Initialize lists to store data
                 afp = []
-                valor_cuota = []
-                valor_patrimonio = []
+                quota_value = []
+                net_asset_value = []
 
-                # Recorrer las filas de la tabla
-                rows = table.find_all('tr')[2:]  # Ajuste para incluir todas las filas relevantes
+                # Traverse table rows
+                rows = table.find_all('tr')[2:]  # Adjust to include all relevant rows
 
                 for row in rows:
                     columns = row.find_all('td')
-                    if len(columns) == 3:  # Asegurarse de que la fila tiene 3 columnas
+                    if len(columns) == 3:  # Ensure the row has 3 columns
                         afp.append(columns[0].text.strip())
-                        valor_cuota.append(columns[1].text.strip())
-                        valor_patrimonio.append(columns[2].text.strip())
+                        quota_value.append(columns[1].text.strip())
+                        net_asset_value.append(columns[2].text.strip())
 
-                # Crear un DataFrame con los datos
+                # Create a DataFrame with the data
                 df = pd.DataFrame({
                     'A.F.P.': afp,
-                    'Valor Cuota': valor_cuota,
-                    'Valor del Patrimonio': valor_patrimonio,
-                    'Fecha': [date_str] * len(afp),
-                    'Fondo': [fondo] * len(afp)
+                    'Quota Value': quota_value,
+                    'Net Asset Value': net_asset_value,
+                    'Date': [date_str] * len(afp),
+                    'Fund': [fund] * len(afp)
                 })
 
-                # Agregar el DataFrame a la lista
+                # Add the DataFrame to the list
                 dataframes.append(df)
 
-                # Actualizar el estado de las AFP
-                for a, v in zip(afp, valor_cuota):
-                    estado = "OK" if "*" not in v else "NOT YET"
-                    afp_estado[a][fondo] = estado
+                # Update AFP status
+                for a, v in zip(afp, quota_value):
+                    status = "OK" if "*" not in v else "NOT YET"
+                    afp_status[a][fund] = status
 
             else:
-                st.error(f"Error al acceder a la página: {response.status_code}")
+                st.error(f"Error accessing the page: {response.status_code}")
 
         except requests.exceptions.RequestException as e:
-            st.error(f"Error de conexión: {e}")
+            st.error(f"Connection error: {e}")
 
-    # Concatenar todos los DataFrames en uno solo
+    # Concatenate all DataFrames into one and filter by the most recent date
     if dataframes:
-        df_consolidado = pd.concat(dataframes, ignore_index=True)
+        df_consolidated = pd.concat(dataframes, ignore_index=True)
+        df_consolidated = df_consolidated[df_consolidated['Date'] == latest_date]
     else:
-        st.write("No se pudieron obtener datos de ningún fondo.")
-        return None, None, None, None
+        st.write("No data could be retrieved from any fund.")
+        return None, None, None, None, None
 
-    # Incorporar valores de cuota manualmente al DataFrame
+    # Incorporate manually entered quota values into the DataFrame
     afp_manual = []
-    valor_cuota_manual = []
-    valor_patrimonio_manual = []
+    quota_value_manual = []
+    net_asset_value_manual = []
 
-    for (afp, fondo), cuota in cuotas_manual.items():
+    for (afp, fund), quota in manual_quotas.items():
         afp_manual.append(afp)
-        valor_cuota_manual.append(cuota)
-        valor_patrimonio_manual.append("")
+        quota_value_manual.append(quota)
+        net_asset_value_manual.append("")
 
-    # Crear DataFrame con los datos ingresados manualmente
-    if ultima_fecha is not None:
+    # Create DataFrame with manually entered data
+    if latest_date is not None:
         df_manual = pd.DataFrame({
             'A.F.P.': afp_manual,
-            'Valor Cuota': valor_cuota_manual,
-            'Valor del Patrimonio': valor_patrimonio_manual,
-            'Fecha': [ultima_fecha] * len(afp_manual),
-            'Fondo': [fondo for (_, fondo) in cuotas_manual.keys()]
+            'Quota Value': quota_value_manual,
+            'Net Asset Value': net_asset_value_manual,
+            'Date': [latest_date] * len(afp_manual),
+            'Fund': [fund for (_, fund) in manual_quotas.keys()]
         })
         dataframes.insert(0, df_manual)
     else:
-        st.error("No se pudo determinar la última fecha disponible, por lo que no se pueden incluir datos manuales.")
-        return None, None, None, None
+        st.error("Could not determine the latest available date, so manual data cannot be included.")
+        return None, None, None, None, None
 
-    # Concatenar todos los DataFrames en uno solo
-    df_consolidado = pd.concat(dataframes, ignore_index=True)
+    # Concatenate all DataFrames into one
+    df_consolidated = pd.concat(dataframes, ignore_index=True)
 
-    # Reemplazar los valores de cuota (*) con valores manuales si están disponibles
-    for index, row in df_consolidado.iterrows():
-        if row['Valor Cuota'] == '(*)':
-            manual_value = cuotas_manual.get((row['A.F.P.'], row['Fondo']), None)
+    # Replace quota values of (*) with manually entered values if available
+    for index, row in df_consolidated.iterrows():
+        if row['Quota Value'] == '(*)':
+            manual_value = manual_quotas.get((row['A.F.P.'], row['Fund']), None)
             if manual_value:
-                df_consolidado.at[index, 'Valor Cuota'] = manual_value
+                df_consolidated.at[index, 'Quota Value'] = manual_value
 
-    # Priorizar los valores descargados sobre los ingresados manualmente
-    df_consolidado.drop_duplicates(subset=['A.F.P.', 'Fondo'], keep='last', inplace=True)
+    # Prioritize downloaded values over manually entered ones
+    df_consolidated.drop_duplicates(subset=['A.F.P.', 'Fund'], keep='last', inplace=True)
 
-    # Guardar el DataFrame en un archivo CSV
-    fecha_archivo = df_consolidado['Fecha'].iloc[0].replace("/", "-")
-    nombre_archivo = f"datos_fondos_{fecha_archivo}.csv"
-    df_consolidado.to_csv(nombre_archivo, index=False)
+    # Save the DataFrame to a CSV file
+    file_date = df_consolidated['Date'].iloc[0].replace("/", "-")
+    file_name = f"fund_data_{file_date}.csv"
+    df_consolidated.to_csv(file_name, index=False)
 
-    # Leer y ordenar los archivos CSV disponibles
-    archivos_csv = glob.glob('datos_fondos_*.csv')
-    archivos_csv.sort(key=obtener_fecha_archivo)
+    return df_consolidated, file_name, afp_status, latest_date
 
-    # Leer el archivo más reciente (actual)
-    df_actual = pd.read_csv(archivos_csv[-1])
-
-    # Leer el archivo anterior al más reciente (ayer)
-    df_anterior = pd.read_csv(archivos_csv[-2])
-
-    # Limpiar los valores de ambos DataFrames
-    df_actual = limpiar_valores(df_actual)
-    df_anterior = limpiar_valores(df_anterior)
-
-    # Verificar si ambos DataFrames contienen datos
-    if not df_actual.empty and not df_anterior.empty:
-        # Fusionar los DataFrames en base a la AFP y Fondo
-        df_comparacion = pd.merge(df_actual, df_anterior, on=['A.F.P.', 'Fondo'], suffixes=('_hoy', '_ayer'))
-
-        # Filtrar filas donde 'Valor Cuota' de ambos días sean números (no NaN)
-        df_comparacion = df_comparacion.dropna(subset=['Valor Cuota_hoy', 'Valor Cuota_ayer'])
-
-        # Calcular la rentabilidad
-        df_comparacion['Rentabilidad'] = (df_comparacion['Valor Cuota_hoy'] - df_comparacion['Valor Cuota_ayer']) / df_comparacion['Valor Cuota_ayer'] * 100
-
-        # Seleccionar las columnas para la tabla final
-        df_resultado = df_comparacion[['A.F.P.', 'Fondo', 'Valor Cuota_hoy', 'Valor Cuota_ayer', 'Rentabilidad', 'Fecha_hoy']]
-
-        # Filtrar los datos de AFP Provida
-        provida_data = df_comparacion[df_comparacion['A.F.P.'] == 'PROVIDA']
-
-        # Verificar si hay datos de rentabilidad para AFP Provida
-        if not provida_data.empty:
-            # Crear una tabla para almacenar las diferencias de rentabilidad
-            fondos = df_comparacion['Fondo'].unique()
-            afps = df_comparacion['A.F.P.'].unique()
-            afps = afps[afps != 'PROVIDA']  # Excluir AFP Provida
-
-            # Inicializar la tabla con NaN
-            rentabilidad_diferencia = pd.DataFrame(index=afps, columns=fondos, data=pd.NA)
-
-            # Calcular la diferencia de rentabilidad con respecto a AFP Provida
-            for fondo in fondos:
-                rentabilidad_provida = provida_data[provida_data['Fondo'] == fondo]['Rentabilidad']
-                if not rentabilidad_provida.empty:
-                    for afp in afps:
-                        rentabilidad_afp = df_comparacion[(df_comparacion['A.F.P.'] == afp) & (df_comparacion['Fondo'] == fondo)]['Rentabilidad']
-                        if not rentabilidad_afp.empty:
-                            diferencia = (rentabilidad_provida.values[0] - rentabilidad_afp.values[0])*100
-                            rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
-
-            # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
-            st.write("Comparación de rentabilidad con respecto a AFP Provida:")
-            st.dataframe(rentabilidad_diferencia)
-        else:
-            st.write("No hay datos de rentabilidad para AFP Provida en este día.")
-
-        # Mostrar la última fecha disponible
-        st.subheader(f"Última fecha disponible: {ultima_fecha}")
-
-        # Convertir el diccionario de estado de AFP a un DataFrame
-        afp_estado_df = pd.DataFrame(afp_estado).T
-        afp_estado_df.index.name = 'AFP'
-        afp_estado_df.columns.name = 'Fondo'
-        
-        # Mostrar el estado de cada AFP
-        st.write("Estado de cada AFP:")
-        st.dataframe(afp_estado_df)
-
-    else:
-        st.write("No se pudieron obtener datos suficientes para la comparación.")
-
-def limpiar_valores(df):
-    df['Valor Cuota'] = df['Valor Cuota'].apply(lambda x: pd.to_numeric(x.replace('.', '').replace(',', '.'), errors='coerce'))
+def clean_values(df):
+    df['Quota Value'] = df['Quota Value'].apply(lambda x: pd.to_numeric(x.replace('.', '').replace(',', '.'), errors='coerce'))
     return df
 
-def obtener_fecha_archivo(nombre_archivo):
-    return os.path.splitext(nombre_archivo)[0].split('_')[-1]
+def get_file_date(file_name):
+    return os.path.splitext(file_name)[0].split('_')[-1]
 
-# Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFP ✌️")
-st.write("Información extraída del sitio de la Superintendencia de Pensiones")
-if st.button('Ejecutar Proceso'):
-    obtener_datos()
+# Streamlit interface
+st.title("Relative Performance of AFPs ✌️")
+
+if st.button('Run Process'):
+    df_consolidated, file_name, afp_status, latest_date = fetch_data()
+
+    if df_consolidated is not None:
+        # Read and sort available CSV files
+        csv_files = glob.glob('fund_data_*.csv')
+        csv_files.sort(key=get_file_date)
+
+        # Read the most recent file (current)
+        df_current = pd.read_csv(csv_files[-1])
+
+        # Read the file previous to the most recent (yesterday)
+        df_previous = pd.read_csv(csv_files[-2])
+
+        # Clean values in both DataFrames
+        df_current = clean_values(df_current)
+        df_previous = clean_values(df_previous)
+
+        # Check if both DataFrames contain data
+        if not df_current.empty and not df_previous.empty:
+            # Merge DataFrames based on AFP and Fund
+            df_comparison = pd.merge(df_current, df_previous, on=['A.F.P.', 'Fund'], suffixes=('_today', '_yesterday'))
+
+            # Filter rows where 'Quota Value' from both days are numbers (not NaN)
+            df_comparison = df_comparison.dropna(subset=['Quota Value_today', 'Quota Value_yesterday'])
+
+            # Calculate performance
+
+            df_comparison['Performance'] = (df_comparison['Quota Value_today'] - df_comparison['Quota Value_yesterday']) / df_comparison['Quota Value_yesterday'] * 100
+
+            # Select columns for the final table
+            df_result = df_comparison[['A.F.P.', 'Fund', 'Quota Value_today', 'Quota Value_yesterday', 'Performance', 'Date_today']]
+
+            # Filter data for AFP Provida
+            provida_data = df_comparison[df_comparison['A.F.P.'] == 'PROVIDA']
+
+            # Check if there is performance data for AFP Provida
+            if not provida_data.empty:
+                # Create a table to store performance differences
+                funds = df_comparison['Fund'].unique()
+                afps = df_comparison['A.F.P.'].unique()
+                afps = afps[afps != 'PROVIDA']  # Exclude AFP Provida
+
+                # Initialize the table with NaN
+                performance_difference = pd.DataFrame(index=afps, columns=funds, data=pd.NA)
+
+                # Calculate the performance difference relative to AFP Provida
+                for fund in funds:
+                    provida_performance = provida_data[provida_data['Fund'] == fund]['Performance']
+                    if not provida_performance.empty:
+                        for afp in afps:
+                            afp_performance = df_comparison[(df_comparison['A.F.P.'] == afp) & (df_comparison['Fund'] == fund)]['Performance']
+                            if not afp_performance.empty:
+                                difference = (provida_performance.values[0] - afp_performance.values[0]) * 100
+                                performance_difference.loc[afp, fund] = round(difference, 1)
+
+                # Display the performance difference table relative to Provida
+                st.write("Performance Comparison relative to AFP Provida ✌️:")
+                st.dataframe(performance_difference)
+            else:
+                st.write("No performance data for AFP Provida on this day.")
+
+            # Display the latest available date
+            st.write(f"Latest available date from web scraping: {latest_date}")
+
+            # Convert AFP status dictionary to a DataFrame
+            afp_status_df = pd.DataFrame(afp_status).T
+            afp_status_df.index.name = 'AFP'
+            afp_status_df.columns.name = 'Fund'
+            
+            # Display the status of each AFP
+            st.write("Status of each AFP:")
+            st.dataframe(afp_status_df)
+        else:
+            st.write("Insufficient data available for comparison.")
