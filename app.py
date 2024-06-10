@@ -242,7 +242,7 @@ if st.button('Ejecutar Proceso'):
                                 rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
 
                 # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
-                st.write("Comparación de rentabilidad con respecto a AFP Provida ✌️:")
+                st.write("Comparación de rentabilidad con respecto a AFP Provida:")
                 st.dataframe(rentabilidad_diferencia)
             else:
                 st.write("No hay datos de rentabilidad para AFP Provida en este día.")
