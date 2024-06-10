@@ -184,7 +184,7 @@ def obtener_fecha_archivo(nombre_archivo):
     return os.path.splitext(nombre_archivo)[0].split('_')[-1]
 
 # Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFPs ✌️")
+st.title("Rentabilidad Relativa AFP ✌️")
 
 if st.button('Ejecutar Proceso'):
     df_consolidado, nombre_archivo, afp_estado, ultima_fecha = obtener_datos()
