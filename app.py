@@ -16,36 +16,36 @@ urls_fondos = {
 
 # Cuotas ingresadas manualmente con los nombres correctos de las AFP y fechas
 cuotas_manual = {
-    ('UNO', 'A'): ('*', '2023-06-10'),
-    ('UNO', 'B'): ('*', '2023-06-10'),
-    ('UNO', 'C'): ('*', '2023-06-10'),
-    ('UNO', 'D'): ('*', '2023-06-10'),
-    ('UNO', 'E'): ('*', '2023-06-10'),
-    ('CAPITAL', 'A'): ('*', '2023-06-10'),
-    ('CAPITAL', 'B'): ('*', '2023-06-10'),
-    ('CAPITAL', 'C'): ('*', '2023-06-10'),
-    ('CAPITAL', 'D'): ('*', '2023-06-10'),
-    ('CAPITAL', 'E'): ('*', '2023-06-10'),
-    ('CUPRUM', 'A'): ('*', '2023-06-10'),
-    ('CUPRUM', 'B'): ('*', '2023-06-10'),
-    ('CUPRUM', 'C'): ('*', '2023-06-10'),
-    ('CUPRUM', 'D'): ('*', '2023-06-10'),
-    ('CUPRUM', 'E'): ('*', '2023-06-10'),
-    ('HABITAT', 'A'): ('*', '2023-06-10'),
-    ('HABITAT', 'B'): ('*', '2023-06-10'),
-    ('HABITAT', 'C'): ('*', '2023-06-10'),
-    ('HABITAT', 'D'): ('*', '2023-06-10'),
-    ('HABITAT', 'E'): ('*', '2023-06-10'),
-    ('MODELO', 'A'): ('*', '2023-06-10'),
-    ('MODELO', 'B'): ('*', '2023-06-10'),
-    ('MODELO', 'C'): ('*', '2023-06-10'),
-    ('MODELO', 'D'): ('*', '2023-06-10'),
-    ('MODELO', 'E'): ('*', '2023-06-10'),
-    ('PLANVITAL', 'A'): ('*', '2023-06-10'),
-    ('PLANVITAL', 'B'): ('*', '2023-06-10'),
-    ('PLANVITAL', 'C'): ('*', '2023-06-10'),
-    ('PLANVITAL', 'D'): ('*', '2023-06-10'),
-    ('PLANVITAL', 'E'): ('*', '2023-06-10'),
+    ('UNO', 'A'): ('*', '*'),
+    ('UNO', 'B'): ('*', '*'),
+    ('UNO', 'C'): ('*', '*'),
+    ('UNO', 'D'): ('*', '*'),
+    ('UNO', 'E'): ('*', '*'),
+    ('CAPITAL', 'A'): ('*', '*'),
+    ('CAPITAL', 'B'): ('*', '*'),
+    ('CAPITAL', 'C'): ('*', '*'),
+    ('CAPITAL', 'D'): ('*', '*'),
+    ('CAPITAL', 'E'): ('*', '*'),
+    ('CUPRUM', 'A'): ('*', '*'),
+    ('CUPRUM', 'B'): ('*', '*'),
+    ('CUPRUM', 'C'): ('*', '*'),
+    ('CUPRUM', 'D'): ('*', '*'),
+    ('CUPRUM', 'E'): ('*', '*'),
+    ('HABITAT', 'A'): ('*', '*'),
+    ('HABITAT', 'B'): ('*', '*'),
+    ('HABITAT', 'C'): ('*', '*'),
+    ('HABITAT', 'D'): ('*', '*'),
+    ('HABITAT', 'E'): ('*', '*'),
+    ('MODELO', 'A'): ('*', '*'),
+    ('MODELO', 'B'): ('*', '*'),
+    ('MODELO', 'C'): ('*', '*'),
+    ('MODELO', 'D'): ('*', '*'),
+    ('MODELO', 'E'): ('*', '*'),
+    ('PLANVITAL', 'A'): ('*', '*'),
+    ('PLANVITAL', 'B'): ('*', '*'),
+    ('PLANVITAL', 'C'): ('*', '*'),
+    ('PLANVITAL', 'D'): ('*', '*'),
+    ('PLANVITAL', 'E'): ('*', '*'),
     ('PROVIDA', 'A'): ('68244,05', '2023-06-10'),
     ('PROVIDA', 'B'): ('57097,72', '2023-06-10'),
     ('PROVIDA', 'C'): ('54734,32', '2023-06-10'),
@@ -124,14 +124,6 @@ def obtener_datos():
         except requests.exceptions.RequestException as e:
             st.error(f"Error de conexión: {e}")
 
-    # Concatenar todos los DataFrames en uno solo y filtrar por la fecha más reciente
-    if dataframes:
-        df_consolidado = pd.concat(dataframes, ignore_index=True)
-        df_consolidado = df_consolidado[df_consolidado['Fecha'] == ultima_fecha]
-    else:
-        st.write("No se pudieron obtener datos de ningún fondo.")
-        return None, None, None, None, None
-
     # Incorporar valores de cuota manualmente al DataFrame
     afp_manual = []
     valor_cuota_manual = []
@@ -161,19 +153,19 @@ def obtener_datos():
     # Concatenar todos los DataFrames en uno solo
     df_consolidado = pd.concat(dataframes, ignore_index=True)
 
-    # Reemplazar los valores de cuota (*) con valores manuales si están disponibles
-    for index, row in df_consolidado.iterrows():
-        if row['Valor Cuota'] == '*':
-            manual_value, manual_date = cuotas_manual.get((row['A.F.P.'], row['Fondo']), (None, None))
-            if manual_value:
-                df_consolidado.at[index, 'Valor Cuota'] = manual_value
-                df_consolidado.at[index, 'Fecha'] = manual_date
+    # Obtener la fecha más reciente considerando tanto el web scraping como los datos manuales
+    if ultima_fecha is None:
+        # Si no hay fechas de web scraping, tomar la fecha más reciente de los datos manuales
+        ultima_fecha = max(fecha for _, (cuota, fecha) in cuotas_manual.items() if fecha != '*')
+    elif any(fecha != '*' for _, (cuota, fecha) in cuotas_manual.items()):
+        # Si hay fechas manuales, considerar la más reciente entre web scraping y manuales
+        ultima_fecha = max(ultima_fecha, max(fecha for _, (cuota, fecha) in cuotas_manual.items() if fecha != '*'))
 
-    # Priorizar los valores descargados sobre los ingresados manualmente
-    df_consolidado.drop_duplicates(subset=['A.F.P.', 'Fondo'], keep='last', inplace=True)
+    # Filtrar el DataFrame consolidado por la última fecha
+    df_consolidado = df_consolidado[df_consolidado['Fecha'] == ultima_fecha]
 
     # Guardar el DataFrame en un archivo CSV
-    fecha_archivo = df_consolidado['Fecha'].iloc[0].replace("/", "-")
+    fecha_archivo = ultima_fecha.replace("/", "-")
     nombre_archivo = f"datos_fondos_{fecha_archivo}.csv"
     df_consolidado.to_csv(nombre_archivo, index=False)
 
@@ -201,7 +193,10 @@ if st.button('Ejecutar Proceso'):
         df_actual = pd.read_csv(archivos_csv[-1])
 
         # Leer el archivo anterior al más reciente (ayer)
-        df_anterior = pd.read_csv(archivos_csv[-2])
+        if len(archivos_csv) > 1:
+            df_anterior = pd.read_csv(archivos_csv[-2])
+        else:
+            df_anterior = pd.DataFrame(columns=df_actual.columns)
 
         # Limpiar los valores de ambos DataFrames
         df_actual = limpiar_valores(df_actual)
