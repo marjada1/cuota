@@ -53,83 +53,6 @@ cuotas_manual = {
     ('PROVIDA', 'E'): '*',
 }
 
-# Cuotas manuales para la primera cuota del mes y del año
-cuotas_mensuales = {
-    ('UNO', 'A'): '1000',
-    ('UNO', 'B'): '1000',
-    ('UNO', 'C'): '1000',
-    ('UNO', 'D'): '1000',
-    ('UNO', 'E'): '1000',
-    ('CAPITAL', 'A'): '1000',
-    ('CAPITAL', 'B'): '1000',
-    ('CAPITAL', 'C'): '1000',
-    ('CAPITAL', 'D'): '1000',
-    ('CAPITAL', 'E'): '1000',
-    ('CUPRUM', 'A'): '1000',
-    ('CUPRUM', 'B'): '1000',
-    ('CUPRUM', 'C'): '1000',
-    ('CUPRUM', 'D'): '1000',
-    ('CUPRUM', 'E'): '1000',
-    ('HABITAT', 'A'): '1000',
-    ('HABITAT', 'B'): '1000',
-    ('HABITAT', 'C'): '1000',
-    ('HABITAT', 'D'): '1000',
-    ('HABITAT', 'E'): '1000',
-    ('MODELO', 'A'): '1000',
-    ('MODELO', 'B'): '1000',
-    ('MODELO', 'C'): '1000',
-    ('MODELO', 'D'): '1000',
-    ('MODELO', 'E'): '1000',
-    ('PLANVITAL', 'A'): '1000',
-    ('PLANVITAL', 'B'): '1000',
-    ('PLANVITAL', 'C'): '1000',
-    ('PLANVITAL', 'D'): '1000',
-    ('PLANVITAL', 'E'): '1000',
-    ('PROVIDA', 'A'): '1000',
-    ('PROVIDA', 'B'): '1000',
-    ('PROVIDA', 'C'): '1000',
-    ('PROVIDA', 'D'): '1000',
-    ('PROVIDA', 'E'): '1000',
-}
-
-cuotas_anuales = {
-    ('UNO', 'A'): '900',
-    ('UNO', 'B'): '900',
-    ('UNO', 'C'): '900',
-    ('UNO', 'D'): '900',
-    ('UNO', 'E'): '900',
-    ('CAPITAL', 'A'): '900',
-    ('CAPITAL', 'B'): '900',
-    ('CAPITAL', 'C'): '900',
-    ('CAPITAL', 'D'): '900',
-    ('CAPITAL', 'E'): '900',
-    ('CUPRUM', 'A'): '900',
-    ('CUPRUM', 'B'): '900',
-    ('CUPRUM', 'C'): '900',
-    ('CUPRUM', 'D'): '900',
-    ('CUPRUM', 'E'): '900',
-    ('HABITAT', 'A'): '900',
-    ('HABITAT', 'B'): '900',
-    ('HABITAT', 'C'): '900',
-    ('HABITAT', 'D'): '900',
-    ('HABITAT', 'E'): '900',
-    ('MODELO', 'A'): '900',
-    ('MODELO', 'B'): '900',
-    ('MODELO', 'C'): '900',
-    ('MODELO', 'D'): '900',
-    ('MODELO', 'E'): '900',
-    ('PLANVITAL', 'A'): '900',
-    ('PLANVITAL', 'B'): '900',
-    ('PLANVITAL', 'C'): '900',
-    ('PLANVITAL', 'D'): '900',
-    ('PLANVITAL', 'E'): '900',
-    ('PROVIDA', 'A'): '900',
-    ('PROVIDA', 'B'): '900',
-    ('PROVIDA', 'C'): '900',
-    ('PROVIDA', 'D'): '900',
-    ('PROVIDA', 'E'): '900',
-}
-
 def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
     dataframes = []
@@ -207,7 +130,7 @@ def obtener_datos():
         df_consolidado = df_consolidado[df_consolidado['Fecha'] == ultima_fecha]
     else:
         st.write("No se pudieron obtener datos de ningún fondo.")
-        return None, None, None, None
+        return None, None, None, None, None
 
     # Incorporar valores de cuota manualmente al DataFrame
     afp_manual = []
@@ -231,7 +154,7 @@ def obtener_datos():
         dataframes.insert(0, df_manual)
     else:
         st.error("No se pudo determinar la última fecha disponible, por lo que no se pueden incluir datos manuales.")
-        return None, None, None, None
+        return None, None, None, None, None
 
     # Concatenar todos los DataFrames en uno solo
     df_consolidado = pd.concat(dataframes, ignore_index=True)
@@ -261,7 +184,7 @@ def obtener_fecha_archivo(nombre_archivo):
     return os.path.splitext(nombre_archivo)[0].split('_')[-1]
 
 # Interfaz de Streamlit
-st.title("Rentabilidad Relativa AFPs ✌️")
+st.title("Rentabilidad Relativa AFP ✌️")
 
 if st.button('Ejecutar Proceso'):
     df_consolidado, nombre_archivo, afp_estado, ultima_fecha = obtener_datos()
@@ -274,66 +197,66 @@ if st.button('Ejecutar Proceso'):
         # Leer el archivo más reciente (actual)
         df_actual = pd.read_csv(archivos_csv[-1])
 
-        # Limpiar los valores del DataFrame actual
+        # Leer el archivo anterior al más reciente (ayer)
+        df_anterior = pd.read_csv(archivos_csv[-2])
+
+        # Limpiar los valores de ambos DataFrames
         df_actual = limpiar_valores(df_actual)
+        df_anterior = limpiar_valores(df_anterior)
 
-        # Calcular la rentabilidad MTD y YTD
-        rentabilidad_mtd = {}
-        rentabilidad_ytd = {}
+        # Verificar si ambos DataFrames contienen datos
+        if not df_actual.empty and not df_anterior.empty:
+            # Fusionar los DataFrames en base a la AFP y Fondo
+            df_comparacion = pd.merge(df_actual, df_anterior, on=['A.F.P.', 'Fondo'], suffixes=('_hoy', '_ayer'))
 
-        for (afp, fondo), cuota_mes in cuotas_mensuales.items():
-            cuota_mes = float(cuota_mes.replace(',', '.'))
-            cuota_hoy = df_actual[(df_actual['A.F.P.'] == afp) & (df_actual['Fondo'] == fondo)]['Valor Cuota'].values
+            # Filtrar filas donde 'Valor Cuota' de ambos días sean números (no NaN)
+            df_comparacion = df_comparacion.dropna(subset=['Valor Cuota_hoy', 'Valor Cuota_ayer'])
 
-            if len(cuota_hoy) > 0:
-                cuota_hoy = float(cuota_hoy[0])
-                rentabilidad_mtd[(afp, fondo)] = ((cuota_hoy - cuota_mes) / cuota_mes) * 100
+            # Calcular la rentabilidad
+            df_comparacion['Rentabilidad'] = (df_comparacion['Valor Cuota_hoy'] - df_comparacion['Valor Cuota_ayer']) / df_comparacion['Valor Cuota_ayer'] * 100
+
+            # Seleccionar las columnas para la tabla final
+            df_resultado = df_comparacion[['A.F.P.', 'Fondo', 'Valor Cuota_hoy', 'Valor Cuota_ayer', 'Rentabilidad', 'Fecha_hoy']]
+
+            # Filtrar los datos de AFP Provida
+            provida_data = df_comparacion[df_comparacion['A.F.P.'] == 'PROVIDA']
+
+            # Verificar si hay datos de rentabilidad para AFP Provida
+            if not provida_data.empty:
+                # Crear una tabla para almacenar las diferencias de rentabilidad
+                fondos = df_comparacion['Fondo'].unique()
+                afps = df_comparacion['A.F.P.'].unique()
+                afps = afps[afps != 'PROVIDA']  # Excluir AFP Provida
+
+                # Inicializar la tabla con NaN
+                rentabilidad_diferencia = pd.DataFrame(index=afps, columns=fondos, data=pd.NA)
+
+                # Calcular la diferencia de rentabilidad con respecto a AFP Provida
+                for fondo in fondos:
+                    rentabilidad_provida = provida_data[provida_data['Fondo'] == fondo]['Rentabilidad']
+                    if not rentabilidad_provida.empty:
+                        for afp in afps:
+                            rentabilidad_afp = df_comparacion[(df_comparacion['A.F.P.'] == afp) & (df_comparacion['Fondo'] == fondo)]['Rentabilidad']
+                            if not rentabilidad_afp.empty:
+                                diferencia = (rentabilidad_provida.values[0] - rentabilidad_afp.values[0]) * 100
+                                rentabilidad_diferencia.loc[afp, fondo] = round(diferencia, 1)
+
+                # Mostrar la tabla de diferencias de rentabilidad con respecto a Provida
+                st.write("Comparación de rentabilidad con respecto a AFP Provida:")
+                st.dataframe(rentabilidad_diferencia)
             else:
-                rentabilidad_mtd[(afp, fondo)] = None
+                st.write("No hay datos de rentabilidad para AFP Provida en este día.")
 
-        for (afp, fondo), cuota_ano in cuotas_anuales.items():
-            cuota_ano = float(cuota_ano.replace(',', '.'))
-            cuota_hoy = df_actual[(df_actual['A.F.P.'] == afp) & (df_actual['Fondo'] == fondo)]['Valor Cuota'].values
+            # Mostrar la última fecha disponible
+            st.write(f"Última fecha disponible en el web scraping: {ultima_fecha}")
 
-            if len(cuota_hoy) > 0:
-                cuota_hoy = float(cuota_hoy[0])
-                rentabilidad_ytd[(afp, fondo)] = ((cuota_hoy - cuota_ano) / cuota_ano) * 100
-            else:
-                rentabilidad_ytd[(afp, fondo)] = None
-
-        # Filtrar los datos de AFP Provida para MTD y YTD
-        rentabilidad_mtd_provida = {k: v for k, v in rentabilidad_mtd.items() if k[0] == 'PROVIDA'}
-        rentabilidad_ytd_provida = {k: v for k, v in rentabilidad_ytd.items() if k[0] == 'PROVIDA'}
-
-        # Crear DataFrames para las diferencias MTD y YTD
-        mtd_diferencia = pd.DataFrame(index=list(set([k[0] for k in rentabilidad_mtd.keys()]) - {'PROVIDA'}), columns=urls_fondos.keys(), data=pd.NA)
-        ytd_diferencia = pd.DataFrame(index=list(set([k[0] for k in rentabilidad_ytd.keys()]) - {'PROVIDA'}), columns=urls_fondos.keys(), data=pd.NA)
-
-        for (afp, fondo) in rentabilidad_mtd:
-            if afp != 'PROVIDA' and (afp, fondo) in rentabilidad_mtd_provida:
-                mtd_diferencia.loc[afp, fondo] = rentabilidad_mtd_provida[('PROVIDA', fondo)] - rentabilidad_mtd[(afp, fondo)]
-
-        for (afp, fondo) in rentabilidad_ytd:
-            if afp != 'PROVIDA' and (afp, fondo) in rentabilidad_ytd_provida:
-                ytd_diferencia.loc[afp, fondo] = rentabilidad_ytd_provida[('PROVIDA', fondo)] - rentabilidad_ytd[(afp, fondo)]
-
-        # Mostrar las tablas de diferencias MTD y YTD con respecto a Provida
-        st.write("Diferencia de Rentabilidad Acumulada (MTD) con respecto a AFP Provida ✌️:")
-        st.dataframe(mtd_diferencia)
-
-        st.write("Diferencia de Rentabilidad Acumulada (YTD) con respecto a AFP Provida ✌️:")
-        st.dataframe(ytd_diferencia)
-
-        # Mostrar la última fecha disponible
-        st.write(f"Última fecha disponible en el web scraping: {ultima_fecha}")
-
-        # Convertir el diccionario de estado de AFP a un DataFrame
-        afp_estado_df = pd.DataFrame(afp_estado).T
-        afp_estado_df.index.name = 'AFP'
-        afp_estado_df.columns.name = 'Fondo'
-        
-        # Mostrar el estado de cada AFP
-        st.write("Estado de cada AFP:")
-        st.dataframe(afp_estado_df)
-    else:
-        st.write("No se pudieron obtener datos suficientes para la comparación.")
+            # Convertir el diccionario de estado de AFP a un DataFrame
+            afp_estado_df = pd.DataFrame(afp_estado).T
+            afp_estado_df.index.name = 'AFP'
+            afp_estado_df.columns.name = 'Fondo'
+            
+            # Mostrar el estado de cada AFP
+            st.write("Estado de cada AFP:")
+            st.dataframe(afp_estado_df)
+        else:
+            st.write("No se pudieron obtener datos suficientes para la comparación.")
