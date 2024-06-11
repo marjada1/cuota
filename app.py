@@ -52,7 +52,6 @@ cuotas_manual = {
     ('PROVIDA', 'D'): '44261,24',
     ('PROVIDA', 'E'): '52669,91',
 }
-
 def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
     dataframes = []
