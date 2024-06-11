@@ -14,43 +14,43 @@ urls_fondos = {
     'E': 'https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php?tf=E'
 }
 
-# Cuotas ingresadas manualmente con los nombres correctos de las AFP
+# Cuotas ingresadas manualmente con los nombres correctos de las AFP y fechas
 cuotas_manual = {
-    ('UNO', 'A'): '*',
-    ('UNO', 'B'): '*',
-    ('UNO', 'C'): '*',
-    ('UNO', 'D'): '*',
-    ('UNO', 'E'): '*',
-    ('CAPITAL', 'A'): '*',
-    ('CAPITAL', 'B'): '*',
-    ('CAPITAL', 'C'): '*',
-    ('CAPITAL', 'D'): '*',
-    ('CAPITAL', 'E'): '*',
-    ('CUPRUM', 'A'): '*',
-    ('CUPRUM', 'B'): '*',
-    ('CUPRUM', 'C'): '*',
-    ('CUPRUM', 'D'): '*',
-    ('CUPRUM', 'E'): '*',
-    ('HABITAT', 'A'): '*',
-    ('HABITAT', 'B'): '*',
-    ('HABITAT', 'C'): '*',
-    ('HABITAT', 'D'): '*',
-    ('HABITAT', 'E'): '*',
-    ('MODELO', 'A'): '*',
-    ('MODELO', 'B'): '*',
-    ('MODELO', 'C'): '*',
-    ('MODELO', 'D'): '*',
-    ('MODELO', 'E'): '*',
-    ('PLANVITAL', 'A'): '*',
-    ('PLANVITAL', 'B'): '*',
-    ('PLANVITAL', 'C'): '*',
-    ('PLANVITAL', 'D'): '*',
-    ('PLANVITAL', 'E'): '*',
-    ('PROVIDA', 'A'): '*',
-    ('PROVIDA', 'B'): '*',
-    ('PROVIDA', 'C'): '*',
-    ('PROVIDA', 'D'): '*',
-    ('PROVIDA', 'E'): '*',
+    ('UNO', 'A'): ('*', '2023-06-10'),
+    ('UNO', 'B'): ('*', '2023-06-10'),
+    ('UNO', 'C'): ('*', '2023-06-10'),
+    ('UNO', 'D'): ('*', '2023-06-10'),
+    ('UNO', 'E'): ('*', '2023-06-10'),
+    ('CAPITAL', 'A'): ('*', '2023-06-10'),
+    ('CAPITAL', 'B'): ('*', '2023-06-10'),
+    ('CAPITAL', 'C'): ('*', '2023-06-10'),
+    ('CAPITAL', 'D'): ('*', '2023-06-10'),
+    ('CAPITAL', 'E'): ('*', '2023-06-10'),
+    ('CUPRUM', 'A'): ('*', '2023-06-10'),
+    ('CUPRUM', 'B'): ('*', '2023-06-10'),
+    ('CUPRUM', 'C'): ('*', '2023-06-10'),
+    ('CUPRUM', 'D'): ('*', '2023-06-10'),
+    ('CUPRUM', 'E'): ('*', '2023-06-10'),
+    ('HABITAT', 'A'): ('*', '2023-06-10'),
+    ('HABITAT', 'B'): ('*', '2023-06-10'),
+    ('HABITAT', 'C'): ('*', '2023-06-10'),
+    ('HABITAT', 'D'): ('*', '2023-06-10'),
+    ('HABITAT', 'E'): ('*', '2023-06-10'),
+    ('MODELO', 'A'): ('*', '2023-06-10'),
+    ('MODELO', 'B'): ('*', '2023-06-10'),
+    ('MODELO', 'C'): ('*', '2023-06-10'),
+    ('MODELO', 'D'): ('*', '2023-06-10'),
+    ('MODELO', 'E'): ('*', '2023-06-10'),
+    ('PLANVITAL', 'A'): ('*', '2023-06-10'),
+    ('PLANVITAL', 'B'): ('*', '2023-06-10'),
+    ('PLANVITAL', 'C'): ('*', '2023-06-10'),
+    ('PLANVITAL', 'D'): ('*', '2023-06-10'),
+    ('PLANVITAL', 'E'): ('*', '2023-06-10'),
+    ('PROVIDA', 'A'): ('68244,05', '2023-06-10'),
+    ('PROVIDA', 'B'): ('57097,72', '2023-06-10'),
+    ('PROVIDA', 'C'): ('54734,32', '2023-06-10'),
+    ('PROVIDA', 'D'): ('44261,24', '2023-06-10'),
+    ('PROVIDA', 'E'): ('52669,91', '2023-06-10'),
 }
 
 def obtener_datos():
@@ -136,35 +136,38 @@ def obtener_datos():
     afp_manual = []
     valor_cuota_manual = []
     valor_patrimonio_manual = []
+    fecha_manual = []
+    fondo_manual = []
 
-    for (afp, fondo), cuota in cuotas_manual.items():
+    for (afp, fondo), (cuota, fecha) in cuotas_manual.items():
         afp_manual.append(afp)
         valor_cuota_manual.append(cuota)
         valor_patrimonio_manual.append("")
+        fecha_manual.append(fecha)
+        fondo_manual.append(fondo)
 
     # Crear DataFrame con los datos ingresados manualmente
-    if ultima_fecha is not None:
-        df_manual = pd.DataFrame({
-            'A.F.P.': afp_manual,
-            'Valor Cuota': valor_cuota_manual,
-            'Valor del Patrimonio': valor_patrimonio_manual,
-            'Fecha': [ultima_fecha] * len(afp_manual),
-            'Fondo': [fondo for (_, fondo) in cuotas_manual.keys()]
-        })
-        dataframes.insert(0, df_manual)
-    else:
-        st.error("No se pudo determinar la última fecha disponible, por lo que no se pueden incluir datos manuales.")
-        return None, None, None, None, None
+    df_manual = pd.DataFrame({
+        'A.F.P.': afp_manual,
+        'Valor Cuota': valor_cuota_manual,
+        'Valor del Patrimonio': valor_patrimonio_manual,
+        'Fecha': fecha_manual,
+        'Fondo': fondo_manual
+    })
+
+    # Agregar el DataFrame manual a la lista
+    dataframes.insert(0, df_manual)
 
     # Concatenar todos los DataFrames en uno solo
     df_consolidado = pd.concat(dataframes, ignore_index=True)
 
     # Reemplazar los valores de cuota (*) con valores manuales si están disponibles
     for index, row in df_consolidado.iterrows():
-        if row['Valor Cuota'] == '(*)':
-            manual_value = cuotas_manual.get((row['A.F.P.'], row['Fondo']), None)
+        if row['Valor Cuota'] == '*':
+            manual_value, manual_date = cuotas_manual.get((row['A.F.P.'], row['Fondo']), (None, None))
             if manual_value:
                 df_consolidado.at[index, 'Valor Cuota'] = manual_value
+                df_consolidado.at[index, 'Fecha'] = manual_date
 
     # Priorizar los valores descargados sobre los ingresados manualmente
     df_consolidado.drop_duplicates(subset=['A.F.P.', 'Fondo'], keep='last', inplace=True)
