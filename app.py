@@ -46,11 +46,11 @@ cuotas_manual = {
     ('PLANVITAL', 'C'): '*',
     ('PLANVITAL', 'D'): '*',
     ('PLANVITAL', 'E'): '*',
-    ('PROVIDA', 'A'): '*',
-    ('PROVIDA', 'B'): '*',
-    ('PROVIDA', 'C'): '*',
-    ('PROVIDA', 'D'): '*',
-    ('PROVIDA', 'E'): '*',
+    ('PROVIDA', 'A'): '68441,16',
+    ('PROVIDA', 'B'): '57214,34',
+    ('PROVIDA', 'C'): '54783,84',
+    ('PROVIDA', 'D'): '44278,21',
+    ('PROVIDA', 'E'): '52687,33',
 }
 def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
