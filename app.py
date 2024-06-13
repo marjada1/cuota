@@ -24,8 +24,8 @@ cuotas_manual = {
     ('CAPITAL', 'A'): '65642,62',
     ('CAPITAL', 'B'): '58108,67',
     ('CAPITAL', 'C'): '57282,3',
-    ('CAPITAL', 'D'): '45855,76',
-    ('CAPITAL', 'E'): '56430,13',
+    ('CAPITAL', 'D'): '',
+    ('CAPITAL', 'E'): '*',
     ('CUPRUM', 'A'): '*',
     ('CUPRUM', 'B'): '*',
     ('CUPRUM', 'C'): '*',
@@ -46,11 +46,11 @@ cuotas_manual = {
     ('PLANVITAL', 'C'): '113270,37',
     ('PLANVITAL', 'D'): '44232,17',
     ('PLANVITAL', 'E'): '90162,53',
-    ('PROVIDA', 'A'): '68639,02',
-    ('PROVIDA', 'B'): '57331',
-    ('PROVIDA', 'C'): '54883,93',
-    ('PROVIDA', 'D'): '44295,19',
-    ('PROVIDA', 'E'): '52705,08',
+    ('PROVIDA', 'A'): '68391,95',
+    ('PROVIDA', 'B'): '57186,24',
+    ('PROVIDA', 'C'): '54779,14',
+    ('PROVIDA', 'D'): '44276,15',
+    ('PROVIDA', 'E'): '52707,71',
 }
 def obtener_datos():
     # Inicializar lista para almacenar los datos de todos los fondos
